@@ -1,0 +1,22 @@
+============================================================
+Fraud Detection Model Performance Metrics
+============================================================
+
+Best Model: random_forest
+F1-Score: 0.4846
+AUC-ROC: 0.9948
+
+All Models Comparison:
+----------------------------------------
+Model: logistic
+  F1-Score: 0.0090
+  AUC-ROC:  0.9716
+----------------------------------------
+Model: random_forest
+  F1-Score: 0.4846
+  AUC-ROC:  0.9948
+----------------------------------------
+Model: gradient_boosting
+  F1-Score: 0.4280
+  AUC-ROC:  0.9948
+----------------------------------------

@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  # Zookeeper - Kafka coordination
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: fraud_trx_detector_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - fraud-network
+
+  # Kafka - Message broker
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: fraud_trx_detector_kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - fraud-network
+    healthcheck:
+      test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL - Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: fraud_trx_detector_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: fraud_detection
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    networks:
+      - fraud-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ShadowTraffic - Data streaming simulator
+  shadowtraffic:
+    image: shadowtraffic/shadowtraffic:latest
+    container_name: fraud_trx_detector_shadowtraffic
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./shadowtraffic/config.json:/home/config.json
+    environment:
+      - SHADOWTRAFFIC_CONFIG=/home/config.json
+      - LICENSE_ID=${LICENSE_ID}
+      - LICENSE_EMAIL=${LICENSE_EMAIL}
+      - LICENSE_ORGANIZATION=${LICENSE_ORGANIZATION}
+      - LICENSE_EDITION=${LICENSE_EDITION}
+      - LICENSE_EXPIRATION=${LICENSE_EXPIRATION}
+      - LICENSE_SIGNATURE=${LICENSE_SIGNATURE}
+    command: [ "--config", "/home/config.json", "--watch" ]
+    networks:
+      - fraud-network
+
+  # Fraud Detector Application
+  fraud-detector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fraud_trx_detector_app
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: payment-transactions
+      KAFKA_GROUP_ID: fraud-detector-group
+      KAFKA_AUTO_OFFSET_RESET: earliest
+      DB_DRIVER: PostgreSQL Unicode
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: fraud_detection
+      DB_USER: postgres
+      DB_PASSWORD: password
+      MODEL_PATH: model/fraud_detector.pkl
+      SCALER_PATH: model/scaler.pkl
+      BATCH_SIZE: 100
+      COMMIT_INTERVAL_SECONDS: 5
+      LOG_LEVEL: INFO
+    volumes:
+      - ./model:/app/model
+      - ./src:/app/src
+    networks:
+      - fraud-network
+    restart: unless-stopped
+
+networks:
+  fraud-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

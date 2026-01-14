@@ -1,0 +1,123 @@
+{
+  "generators": [
+    {
+      "name": "payment-transactions",
+      "value": {
+        "step": {
+          "_gen": "sequentialInteger",
+          "start": 1,
+          "restart": 744
+        },
+        "type": {
+          "_gen": "oneOf",
+          "choices": [
+            "CASH_IN",
+            "CASH_OUT",
+            "DEBIT",
+            "PAYMENT",
+            "TRANSFER"
+          ]
+        },
+        "amount": {
+          "_gen": "normalDistribution",
+          "mean": 50000,
+          "standardDeviation": 100000,
+          "min": 0.01,
+          "max": 10000000
+        },
+        "nameOrig": {
+          "_gen": "string",
+          "expr": "C#{_gen.uuid.toString().replace('-','').substring(0,9)}"
+        },
+        "oldbalanceOrg": {
+          "_gen": "normalDistribution",
+          "mean": 100000,
+          "standardDeviation": 200000,
+          "min": 0,
+          "max": 50000000
+        },
+        "newbalanceOrig": {
+          "_gen": "var",
+          "var": "oldbalanceOrg - amount"
+        },
+        "nameDest": {
+          "_gen": "weightedOneOf",
+          "choices": [
+            {
+              "weight": 30,
+              "value": {
+                "_gen": "string",
+                "expr": "M#{_gen.uuid.toString().replace('-','').substring(0,9)}"
+              }
+            },
+            {
+              "weight": 70,
+              "value": {
+                "_gen": "string",
+                "expr": "C#{_gen.uuid.toString().replace('-','').substring(0,9)}"
+              }
+            }
+          ]
+        },
+        "oldbalanceDest": {
+          "_gen": "conditionalValue",
+          "condition": "nameDest.startsWith('M')",
+          "ifTrue": 0.0,
+          "ifFalse": {
+            "_gen": "normalDistribution",
+            "mean": 80000,
+            "standardDeviation": 150000,
+            "min": 0,
+            "max": 40000000
+          }
+        },
+        "newbalanceDest": {
+          "_gen": "conditionalValue",
+          "condition": "nameDest.startsWith('M')",
+          "ifTrue": 0.0,
+          "ifFalse": {
+            "_gen": "var",
+            "var": "oldbalanceDest + amount"
+          }
+        },
+        "isFraud": {
+          "_gen": "weightedOneOf",
+          "choices": [
+            {
+              "weight": 95,
+              "value": 0
+            },
+            {
+              "weight": 5,
+              "value": 1
+            }
+          ]
+        },
+        "isFlaggedFraud": {
+          "_gen": "conditionalValue",
+          "condition": "amount > 200000",
+          "ifTrue": 1,
+          "ifFalse": 0
+        }
+      },
+      "topic": "payment-transactions",
+      "key": {
+        "_gen": "uuid"
+      },
+      "throttle": {
+        "ms": 100
+      }
+    }
+  ],
+  "connections": {
+    "kafka": {
+      "kind": "kafka",
+      "producerConfigs": {
+        "bootstrap.servers": "kafka:9092",
+        "key.serializer": "io.shadowtraffic.kafka.serdes.JsonSerializer",
+        "value.serializer": "io.shadowtraffic.kafka.serdes.JsonSerializer",
+        "acks": "all"
+      }
+    }
+  }
+}
