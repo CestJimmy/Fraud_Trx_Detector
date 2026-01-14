@@ -119,25 +119,25 @@ These are simulated JSON messages that would be produced by ShadowTraffic to the
 }
 ```
 
-Best Model: random_forest
+**Best Model**: 
+random_forest
 F1-Score: 0.4846
 AUC-ROC: 0.9948
 
-All Models Comparison:
-----------------------------------------
-Model: logistic
-  F1-Score: 0.0090
-  AUC-ROC:  0.9716
+**All Models Comparison**:
 ----------------------------------------
 Model: random_forest
   F1-Score: 0.4846
   AUC-ROC:  0.9948
-----------------------------------------
+----------------------------------------**
 Model: gradient_boosting
   F1-Score: 0.4280
   AUC-ROC:  0.9948
-----------------------------------------
-
+----------------------------------------**
+Model: logistic
+  F1-Score: 0.0090
+  AUC-ROC:  0.9716
+  
 ## 3. Project README
 
 # Real-Time Transaction Fraud Detection System
@@ -333,4 +333,5 @@ docker exec -it fraud_trx_detector_postgres psql -U postgres -d fraud_detection 
 - **Throughput**: Processes ~100 transactions/second
 - **Latency**: <200ms per transaction (includes DB write)
 - **Batching**: Configurable batch size (default: 100) for optimal throughput
+
 - **Scaling**: Can run multiple fraud-detector instances with same consumer group
